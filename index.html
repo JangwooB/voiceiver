@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -70,39 +70,39 @@
 
 <div class="header">
   <h1>Voiceiver</h1>
-  <select class="lang-select" id="langSelect">
-    <option value="ko-KR">🇰🇷 한국어</option>
-    <option value="en-US">🇺🇸 English</option>
+  <select class="lang-select" id="langSelect" onchange="onLangChange()">
+    <option value="en-US">🇺🇸 English (US)</option>
     <option value="en-GB">🇬🇧 English (UK)</option>
-    <option value="ja-JP">🇯🇵 日本語</option>
-    <option value="zh-CN">🇨🇳 中文 (简体)</option>
-    <option value="zh-TW">🇹🇼 中文 (繁體)</option>
+    <option value="ar-SA">🇸🇦 العربية</option>
+    <option value="de-DE">🇩🇪 Deutsch</option>
     <option value="es-ES">🇪🇸 Español</option>
     <option value="fr-FR">🇫🇷 Français</option>
-    <option value="de-DE">🇩🇪 Deutsch</option>
+    <option value="hi-IN">🇮🇳 हिन्दी</option>
+    <option value="ja-JP">🇯🇵 日本語</option>
+    <option value="ko-KR">🇰🇷 한국어</option>
     <option value="pt-BR">🇧🇷 Português</option>
     <option value="ru-RU">🇷🇺 Русский</option>
-    <option value="ar-SA">🇸🇦 العربية</option>
-    <option value="hi-IN">🇮🇳 हिन्दी</option>
-    <option value="vi-VN">🇻🇳 Tiếng Việt</option>
     <option value="th-TH">🇹🇭 ภาษาไทย</option>
+    <option value="vi-VN">🇻🇳 Tiếng Việt</option>
+    <option value="zh-CN">🇨🇳 中文 (简体)</option>
+    <option value="zh-TW">🇹🇼 中文 (繁體)</option>
   </select>
 </div>
 
 <div class="card">
   <div class="status-row">
     <div class="dot" id="dot"></div>
-    <span class="status-text" id="status">시작 버튼을 눌러주세요</span>
+    <span class="status-text" id="status"></span>
   </div>
   <div class="video-wrap" id="videoWrap">
     <video id="videoEl" autoplay playsinline muted></video>
     <canvas id="lipCanvas"></canvas>
   </div>
   <div class="bar-wrap">
-    <div class="bar-label"><span>입 벌림</span><span id="lipPct">0%</span></div>
+    <div class="bar-label"><span id="labelLipOpen"></span><span id="lipPct">0%</span></div>
     <div class="bar-bg"><div class="bar-fill lip" id="lipBar"></div></div>
   </div>
-  <div class="lip-status" id="lipStatus">입이 닫혀있어요</div>
+  <div class="lip-status" id="lipStatus"></div>
 </div>
 
 <div class="card">
@@ -111,43 +111,551 @@
       <span class="db-number" id="dbNumber">--</span>
       <span class="db-unit">dB</span>
     </div>
-    <span class="db-level-badge level-silent" id="dbBadge">대기 중</span>
+    <span class="db-level-badge level-silent" id="dbBadge"></span>
   </div>
   <div class="db-bar-bg">
     <div class="db-bar-fill" id="dbBar"></div>
   </div>
   <div class="db-range-labels">
-    <span>속삭임</span>
-    <span>일상 대화</span>
-    <span>큰 소리</span>
+    <span id="labelWhisper"></span>
+    <span id="labelNormal"></span>
+    <span id="labelLoud"></span>
   </div>
 </div>
 
 <div class="card">
   <div class="transcript-box">
-    <div class="transcript-label">인식된 텍스트</div>
-    <div class="transcript-text placeholder" id="transcript">말씀해주시면 여기에 표시됩니다...</div>
+    <div class="transcript-label" id="labelTranscript"></div>
+    <div class="transcript-text placeholder" id="transcript"></div>
   </div>
   <div class="btn-row">
-    <button class="primary" id="startBtn" onclick="startAll()">시작</button>
-    <button class="stop-btn" id="stopBtn" onclick="stopAll()" disabled>중지</button>
+    <button class="primary" id="startBtn" onclick="startAll()"></button>
+    <button class="stop-btn" id="stopBtn" onclick="stopAll()" disabled></button>
   </div>
 </div>
 
 <div class="card hidden" id="feedbackCard">
-  <div class="transcript-label" style="margin-bottom:10px;">피드백</div>
+  <div class="transcript-label" id="labelFeedback" style="margin-bottom:10px;"></div>
   <div id="feedbackItems"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 <script>
+
+/* ── 번역 데이터 ── */
+var TRANSLATIONS = {
+  'en-US': {
+    statusReady: 'Press Start to begin',
+    statusAnalyzing: 'Analyzing...',
+    statusDone: 'Analysis complete',
+    statusMic: 'Microphone permission required.',
+    labelLipOpen: 'Mouth opening',
+    lipClosed: 'Mouth is closed',
+    lipOpen: 'Mouth is open',
+    labelWhisper: 'Whisper',
+    labelNormal: 'Conversation',
+    labelLoud: 'Loud',
+    labelTranscript: 'Recognized text',
+    transcriptPlaceholder: 'Speak and it will appear here...',
+    btnStart: 'Start',
+    btnStop: 'Stop',
+    labelFeedback: 'Feedback',
+    lvSilent: 'Silent',
+    lvWhisper: 'Whispering',
+    lvNormal: 'Normal',
+    lvLoud: 'Loud',
+    lvShout: 'Shouting',
+    lvStandby: 'Standby',
+    fbRecognized: 'recognized.',
+    fbNotRecognized: 'No speech detected. Try speaking louder and slower.',
+    fbShout: 'Voice is very loud. Try speaking more softly.',
+    fbWhisper: 'Voice is too quiet. Try speaking at a normal level.',
+    fbNormal: 'Voice volume is appropriate.',
+    tagGood: 'Good',
+    tagTip: 'Tip',
+    tagWarn: 'Caution',
+  },
+  'en-GB': {
+    statusReady: 'Press Start to begin',
+    statusAnalyzing: 'Analysing...',
+    statusDone: 'Analysis complete',
+    statusMic: 'Microphone permission required.',
+    labelLipOpen: 'Mouth opening',
+    lipClosed: 'Mouth is closed',
+    lipOpen: 'Mouth is open',
+    labelWhisper: 'Whisper',
+    labelNormal: 'Conversation',
+    labelLoud: 'Loud',
+    labelTranscript: 'Recognised text',
+    transcriptPlaceholder: 'Speak and it will appear here...',
+    btnStart: 'Start',
+    btnStop: 'Stop',
+    labelFeedback: 'Feedback',
+    lvSilent: 'Silent',
+    lvWhisper: 'Whispering',
+    lvNormal: 'Normal',
+    lvLoud: 'Loud',
+    lvShout: 'Shouting',
+    lvStandby: 'Standby',
+    fbRecognized: 'recognised.',
+    fbNotRecognized: 'No speech detected. Try speaking louder and slower.',
+    fbShout: 'Voice is very loud. Try speaking more softly.',
+    fbWhisper: 'Voice is too quiet. Try speaking at a normal level.',
+    fbNormal: 'Voice volume is appropriate.',
+    tagGood: 'Good',
+    tagTip: 'Tip',
+    tagWarn: 'Caution',
+  },
+  'ko-KR': {
+    statusReady: '시작 버튼을 눌러주세요',
+    statusAnalyzing: '분석 중...',
+    statusDone: '분석 완료',
+    statusMic: '마이크 권한이 필요합니다.',
+    labelLipOpen: '입 벌림',
+    lipClosed: '입이 닫혀있어요',
+    lipOpen: '입이 열려있어요',
+    labelWhisper: '속삭임',
+    labelNormal: '일상 대화',
+    labelLoud: '큰 소리',
+    labelTranscript: '인식된 텍스트',
+    transcriptPlaceholder: '말씀해주시면 여기에 표시됩니다...',
+    btnStart: '시작',
+    btnStop: '중지',
+    labelFeedback: '피드백',
+    lvSilent: '무음',
+    lvWhisper: '속삭임',
+    lvNormal: '일상 대화',
+    lvLoud: '큰 소리',
+    lvShout: '소리치는 중',
+    lvStandby: '대기 중',
+    fbRecognized: '발화가 인식되었습니다.',
+    fbNotRecognized: '발화가 인식되지 않았습니다. 더 크고 천천히 말씀해보세요.',
+    fbShout: '목소리가 매우 큽니다. 조금 더 부드럽게 말씀해보세요.',
+    fbWhisper: '목소리가 작습니다. 일상 대화 수준으로 조금 더 크게 말씀해보세요.',
+    fbNormal: '목소리 크기가 적절합니다.',
+    tagGood: '잘됨',
+    tagTip: '개선',
+    tagWarn: '주의',
+  },
+  'ja-JP': {
+    statusReady: 'スタートボタンを押してください',
+    statusAnalyzing: '分析中...',
+    statusDone: '分析完了',
+    statusMic: 'マイクの許可が必要です。',
+    labelLipOpen: '口の開き',
+    lipClosed: '口が閉じています',
+    lipOpen: '口が開いています',
+    labelWhisper: 'ささやき',
+    labelNormal: '会話',
+    labelLoud: '大声',
+    labelTranscript: '認識テキスト',
+    transcriptPlaceholder: '話しかけると、ここに表示されます...',
+    btnStart: 'スタート',
+    btnStop: '停止',
+    labelFeedback: 'フィードバック',
+    lvSilent: '無音',
+    lvWhisper: 'ささやき',
+    lvNormal: '普通',
+    lvLoud: '大声',
+    lvShout: '叫び',
+    lvStandby: '待機中',
+    fbRecognized: 'が認識されました。',
+    fbNotRecognized: '音声が検出されませんでした。もっとゆっくり大きく話してください。',
+    fbShout: '声が非常に大きいです。もう少し穏やかに話してください。',
+    fbWhisper: '声が小さすぎます。普通の会話レベルで話してください。',
+    fbNormal: '声の大きさは適切です。',
+    tagGood: '良い',
+    tagTip: '改善',
+    tagWarn: '注意',
+  },
+  'zh-CN': {
+    statusReady: '请按开始按钮',
+    statusAnalyzing: '分析中...',
+    statusDone: '分析完成',
+    statusMic: '需要麦克风权限。',
+    labelLipOpen: '张口程度',
+    lipClosed: '嘴巴闭合',
+    lipOpen: '嘴巴张开',
+    labelWhisper: '耳语',
+    labelNormal: '对话',
+    labelLoud: '大声',
+    labelTranscript: '识别文本',
+    transcriptPlaceholder: '说话后将在此显示...',
+    btnStart: '开始',
+    btnStop: '停止',
+    labelFeedback: '反馈',
+    lvSilent: '无声',
+    lvWhisper: '耳语',
+    lvNormal: '正常',
+    lvLoud: '大声',
+    lvShout: '喊叫',
+    lvStandby: '待机',
+    fbRecognized: '已识别。',
+    fbNotRecognized: '未检测到语音。请尝试更大声、更慢地说话。',
+    fbShout: '声音非常大。请尝试更柔和地说话。',
+    fbWhisper: '声音太小。请尝试以正常对话音量说话。',
+    fbNormal: '音量适当。',
+    tagGood: '良好',
+    tagTip: '建议',
+    tagWarn: '注意',
+  },
+  'zh-TW': {
+    statusReady: '請按開始按鈕',
+    statusAnalyzing: '分析中...',
+    statusDone: '分析完成',
+    statusMic: '需要麥克風權限。',
+    labelLipOpen: '張口程度',
+    lipClosed: '嘴巴閉合',
+    lipOpen: '嘴巴張開',
+    labelWhisper: '耳語',
+    labelNormal: '對話',
+    labelLoud: '大聲',
+    labelTranscript: '識別文字',
+    transcriptPlaceholder: '說話後將在此顯示...',
+    btnStart: '開始',
+    btnStop: '停止',
+    labelFeedback: '回饋',
+    lvSilent: '無聲',
+    lvWhisper: '耳語',
+    lvNormal: '正常',
+    lvLoud: '大聲',
+    lvShout: '喊叫',
+    lvStandby: '待機',
+    fbRecognized: '已識別。',
+    fbNotRecognized: '未偵測到語音。請嘗試更大聲、更慢地說話。',
+    fbShout: '聲音非常大。請嘗試更柔和地說話。',
+    fbWhisper: '聲音太小。請嘗試以正常對話音量說話。',
+    fbNormal: '音量適當。',
+    tagGood: '良好',
+    tagTip: '建議',
+    tagWarn: '注意',
+  },
+  'es-ES': {
+    statusReady: 'Pulsa Iniciar para comenzar',
+    statusAnalyzing: 'Analizando...',
+    statusDone: 'Análisis completo',
+    statusMic: 'Se requiere permiso de micrófono.',
+    labelLipOpen: 'Apertura de boca',
+    lipClosed: 'Boca cerrada',
+    lipOpen: 'Boca abierta',
+    labelWhisper: 'Susurro',
+    labelNormal: 'Conversación',
+    labelLoud: 'Alto',
+    labelTranscript: 'Texto reconocido',
+    transcriptPlaceholder: 'Habla y aparecerá aquí...',
+    btnStart: 'Iniciar',
+    btnStop: 'Detener',
+    labelFeedback: 'Retroalimentación',
+    lvSilent: 'Silencio',
+    lvWhisper: 'Susurro',
+    lvNormal: 'Normal',
+    lvLoud: 'Alto',
+    lvShout: 'Gritando',
+    lvStandby: 'En espera',
+    fbRecognized: 'reconocido.',
+    fbNotRecognized: 'No se detectó voz. Intenta hablar más alto y despacio.',
+    fbShout: 'La voz es muy alta. Intenta hablar más suavemente.',
+    fbWhisper: 'La voz es muy baja. Intenta hablar a un nivel normal.',
+    fbNormal: 'El volumen de voz es adecuado.',
+    tagGood: 'Bien',
+    tagTip: 'Sugerencia',
+    tagWarn: 'Atención',
+  },
+  'fr-FR': {
+    statusReady: 'Appuyez sur Démarrer',
+    statusAnalyzing: 'Analyse en cours...',
+    statusDone: 'Analyse terminée',
+    statusMic: 'Permission du microphone requise.',
+    labelLipOpen: 'Ouverture de la bouche',
+    lipClosed: 'Bouche fermée',
+    lipOpen: 'Bouche ouverte',
+    labelWhisper: 'Chuchotement',
+    labelNormal: 'Conversation',
+    labelLoud: 'Fort',
+    labelTranscript: 'Texte reconnu',
+    transcriptPlaceholder: 'Parlez et le texte apparaîtra ici...',
+    btnStart: 'Démarrer',
+    btnStop: 'Arrêter',
+    labelFeedback: 'Retour',
+    lvSilent: 'Silence',
+    lvWhisper: 'Chuchotement',
+    lvNormal: 'Normal',
+    lvLoud: 'Fort',
+    lvShout: 'Crier',
+    lvStandby: 'En attente',
+    fbRecognized: 'reconnu.',
+    fbNotRecognized: 'Aucune voix détectée. Essayez de parler plus fort et plus lentement.',
+    fbShout: 'La voix est très forte. Essayez de parler plus doucement.',
+    fbWhisper: 'La voix est trop faible. Essayez de parler normalement.',
+    fbNormal: 'Le volume de la voix est approprié.',
+    tagGood: 'Bien',
+    tagTip: 'Conseil',
+    tagWarn: 'Attention',
+  },
+  'de-DE': {
+    statusReady: 'Drücke Start zum Beginnen',
+    statusAnalyzing: 'Wird analysiert...',
+    statusDone: 'Analyse abgeschlossen',
+    statusMic: 'Mikrofonberechtigung erforderlich.',
+    labelLipOpen: 'Mundöffnung',
+    lipClosed: 'Mund geschlossen',
+    lipOpen: 'Mund geöffnet',
+    labelWhisper: 'Flüstern',
+    labelNormal: 'Gespräch',
+    labelLoud: 'Laut',
+    labelTranscript: 'Erkannter Text',
+    transcriptPlaceholder: 'Sprechen Sie und es erscheint hier...',
+    btnStart: 'Start',
+    btnStop: 'Stopp',
+    labelFeedback: 'Rückmeldung',
+    lvSilent: 'Still',
+    lvWhisper: 'Flüstern',
+    lvNormal: 'Normal',
+    lvLoud: 'Laut',
+    lvShout: 'Schreien',
+    lvStandby: 'Bereit',
+    fbRecognized: 'erkannt.',
+    fbNotRecognized: 'Keine Sprache erkannt. Versuche lauter und langsamer zu sprechen.',
+    fbShout: 'Die Stimme ist sehr laut. Versuche sanfter zu sprechen.',
+    fbWhisper: 'Die Stimme ist zu leise. Versuche in normaler Lautstärke zu sprechen.',
+    fbNormal: 'Die Lautstärke ist angemessen.',
+    tagGood: 'Gut',
+    tagTip: 'Tipp',
+    tagWarn: 'Achtung',
+  },
+  'pt-BR': {
+    statusReady: 'Pressione Iniciar para começar',
+    statusAnalyzing: 'Analisando...',
+    statusDone: 'Análise concluída',
+    statusMic: 'Permissão de microfone necessária.',
+    labelLipOpen: 'Abertura da boca',
+    lipClosed: 'Boca fechada',
+    lipOpen: 'Boca aberta',
+    labelWhisper: 'Sussurro',
+    labelNormal: 'Conversa',
+    labelLoud: 'Alto',
+    labelTranscript: 'Texto reconhecido',
+    transcriptPlaceholder: 'Fale e aparecerá aqui...',
+    btnStart: 'Iniciar',
+    btnStop: 'Parar',
+    labelFeedback: 'Feedback',
+    lvSilent: 'Silêncio',
+    lvWhisper: 'Sussurro',
+    lvNormal: 'Normal',
+    lvLoud: 'Alto',
+    lvShout: 'Gritando',
+    lvStandby: 'Aguardando',
+    fbRecognized: 'reconhecido.',
+    fbNotRecognized: 'Nenhuma fala detectada. Tente falar mais alto e devagar.',
+    fbShout: 'A voz está muito alta. Tente falar mais suavemente.',
+    fbWhisper: 'A voz está muito baixa. Tente falar em volume normal.',
+    fbNormal: 'O volume da voz está adequado.',
+    tagGood: 'Bom',
+    tagTip: 'Dica',
+    tagWarn: 'Atenção',
+  },
+  'ru-RU': {
+    statusReady: 'Нажмите «Старт»',
+    statusAnalyzing: 'Анализ...',
+    statusDone: 'Анализ завершён',
+    statusMic: 'Требуется разрешение на микрофон.',
+    labelLipOpen: 'Открытие рта',
+    lipClosed: 'Рот закрыт',
+    lipOpen: 'Рот открыт',
+    labelWhisper: 'Шёпот',
+    labelNormal: 'Разговор',
+    labelLoud: 'Громко',
+    labelTranscript: 'Распознанный текст',
+    transcriptPlaceholder: 'Говорите, и текст появится здесь...',
+    btnStart: 'Старт',
+    btnStop: 'Стоп',
+    labelFeedback: 'Обратная связь',
+    lvSilent: 'Тишина',
+    lvWhisper: 'Шёпот',
+    lvNormal: 'Норма',
+    lvLoud: 'Громко',
+    lvShout: 'Крик',
+    lvStandby: 'Ожидание',
+    fbRecognized: 'распознано.',
+    fbNotRecognized: 'Речь не обнаружена. Говорите громче и медленнее.',
+    fbShout: 'Голос очень громкий. Говорите мягче.',
+    fbWhisper: 'Голос слишком тихий. Говорите на нормальном уровне.',
+    fbNormal: 'Громкость голоса подходящая.',
+    tagGood: 'Хорошо',
+    tagTip: 'Совет',
+    tagWarn: 'Внимание',
+  },
+  'ar-SA': {
+    statusReady: 'اضغط ابدأ للبدء',
+    statusAnalyzing: 'جارٍ التحليل...',
+    statusDone: 'اكتمل التحليل',
+    statusMic: 'يلزم إذن الميكروفون.',
+    labelLipOpen: 'فتح الفم',
+    lipClosed: 'الفم مغلق',
+    lipOpen: 'الفم مفتوح',
+    labelWhisper: 'همس',
+    labelNormal: 'محادثة',
+    labelLoud: 'عالٍ',
+    labelTranscript: 'النص المعرَّف',
+    transcriptPlaceholder: 'تحدث وسيظهر النص هنا...',
+    btnStart: 'ابدأ',
+    btnStop: 'إيقاف',
+    labelFeedback: 'ملاحظات',
+    lvSilent: 'صامت',
+    lvWhisper: 'همس',
+    lvNormal: 'عادي',
+    lvLoud: 'عالٍ',
+    lvShout: 'صراخ',
+    lvStandby: 'انتظار',
+    fbRecognized: 'تم التعرف عليه.',
+    fbNotRecognized: 'لم يتم اكتشاف الكلام. حاول التحدث بصوت أعلى وأبطأ.',
+    fbShout: 'الصوت عالٍ جداً. حاول التحدث بهدوء أكثر.',
+    fbWhisper: 'الصوت منخفض جداً. حاول التحدث بمستوى طبيعي.',
+    fbNormal: 'مستوى الصوت مناسب.',
+    tagGood: 'جيد',
+    tagTip: 'نصيحة',
+    tagWarn: 'تنبيه',
+  },
+  'hi-IN': {
+    statusReady: 'शुरू करने के लिए Start दबाएं',
+    statusAnalyzing: 'विश्लेषण हो रहा है...',
+    statusDone: 'विश्लेषण पूर्ण',
+    statusMic: 'माइक्रोफ़ोन अनुमति आवश्यक है।',
+    labelLipOpen: 'मुँह खुलना',
+    lipClosed: 'मुँह बंद है',
+    lipOpen: 'मुँह खुला है',
+    labelWhisper: 'फुसफुसाहट',
+    labelNormal: 'बातचीत',
+    labelLoud: 'ज़ोर से',
+    labelTranscript: 'पहचाना गया पाठ',
+    transcriptPlaceholder: 'बोलें और यहाँ दिखेगा...',
+    btnStart: 'शुरू',
+    btnStop: 'रोकें',
+    labelFeedback: 'प्रतिक्रिया',
+    lvSilent: 'मौन',
+    lvWhisper: 'फुसफुसाहट',
+    lvNormal: 'सामान्य',
+    lvLoud: 'ज़ोर से',
+    lvShout: 'चिल्लाना',
+    lvStandby: 'प्रतीक्षा',
+    fbRecognized: 'पहचाना गया।',
+    fbNotRecognized: 'कोई आवाज़ नहीं मिली। ज़ोर से और धीरे बोलें।',
+    fbShout: 'आवाज़ बहुत तेज़ है। थोड़ा धीमे बोलें।',
+    fbWhisper: 'आवाज़ बहुत धीमी है। सामान्य स्तर पर बोलें।',
+    fbNormal: 'आवाज़ की मात्रा उचित है।',
+    tagGood: 'अच्छा',
+    tagTip: 'सुझाव',
+    tagWarn: 'सावधान',
+  },
+  'vi-VN': {
+    statusReady: 'Nhấn Bắt đầu để bắt đầu',
+    statusAnalyzing: 'Đang phân tích...',
+    statusDone: 'Phân tích hoàn tất',
+    statusMic: 'Cần quyền truy cập microphone.',
+    labelLipOpen: 'Độ mở miệng',
+    lipClosed: 'Miệng đang đóng',
+    lipOpen: 'Miệng đang mở',
+    labelWhisper: 'Thì thầm',
+    labelNormal: 'Trò chuyện',
+    labelLoud: 'To',
+    labelTranscript: 'Văn bản nhận dạng',
+    transcriptPlaceholder: 'Nói và văn bản sẽ hiện ở đây...',
+    btnStart: 'Bắt đầu',
+    btnStop: 'Dừng',
+    labelFeedback: 'Phản hồi',
+    lvSilent: 'Im lặng',
+    lvWhisper: 'Thì thầm',
+    lvNormal: 'Bình thường',
+    lvLoud: 'To',
+    lvShout: 'Hét',
+    lvStandby: 'Chờ',
+    fbRecognized: 'đã nhận dạng.',
+    fbNotRecognized: 'Không phát hiện giọng nói. Hãy thử nói to và chậm hơn.',
+    fbShout: 'Giọng quá to. Hãy thử nói nhẹ nhàng hơn.',
+    fbWhisper: 'Giọng quá nhỏ. Hãy thử nói ở mức bình thường.',
+    fbNormal: 'Âm lượng giọng nói phù hợp.',
+    tagGood: 'Tốt',
+    tagTip: 'Gợi ý',
+    tagWarn: 'Chú ý',
+  },
+  'th-TH': {
+    statusReady: 'กดเริ่มเพื่อเริ่มต้น',
+    statusAnalyzing: 'กำลังวิเคราะห์...',
+    statusDone: 'วิเคราะห์เสร็จสิ้น',
+    statusMic: 'ต้องการสิทธิ์ไมโครโฟน',
+    labelLipOpen: 'การเปิดปาก',
+    lipClosed: 'ปากปิดอยู่',
+    lipOpen: 'ปากเปิดอยู่',
+    labelWhisper: 'กระซิบ',
+    labelNormal: 'สนทนา',
+    labelLoud: 'เสียงดัง',
+    labelTranscript: 'ข้อความที่รู้จัก',
+    transcriptPlaceholder: 'พูดและจะแสดงที่นี่...',
+    btnStart: 'เริ่ม',
+    btnStop: 'หยุด',
+    labelFeedback: 'ข้อเสนอแนะ',
+    lvSilent: 'เงียบ',
+    lvWhisper: 'กระซิบ',
+    lvNormal: 'ปกติ',
+    lvLoud: 'เสียงดัง',
+    lvShout: 'ตะโกน',
+    lvStandby: 'รอ',
+    fbRecognized: 'รู้จักแล้ว',
+    fbNotRecognized: 'ไม่พบเสียงพูด ลองพูดดังขึ้นและช้าลง',
+    fbShout: 'เสียงดังมาก ลองพูดเบาลง',
+    fbWhisper: 'เสียงเบาเกินไป ลองพูดในระดับปกติ',
+    fbNormal: 'ระดับเสียงเหมาะสม',
+    tagGood: 'ดี',
+    tagTip: 'แนะนำ',
+    tagWarn: 'ระวัง',
+  },
+};
+
+var currentLang = 'en-US';
+var isRunning = false;
+
+function t(key) {
+  var lang = TRANSLATIONS[currentLang] || TRANSLATIONS['en-US'];
+  return lang[key] || TRANSLATIONS['en-US'][key] || key;
+}
+
+function applyTranslations() {
+  document.getElementById('status').textContent = isRunning ? t('statusAnalyzing') : t('statusReady');
+  document.getElementById('labelLipOpen').textContent = t('labelLipOpen');
+  document.getElementById('lipStatus').textContent = t('lipClosed');
+  document.getElementById('labelWhisper').textContent = t('labelWhisper');
+  document.getElementById('labelNormal').textContent = t('labelNormal');
+  document.getElementById('labelLoud').textContent = t('labelLoud');
+  document.getElementById('labelTranscript').textContent = t('labelTranscript');
+  document.getElementById('dbBadge').textContent = isRunning ? t('lvSilent') : t('lvStandby');
+  var transcriptEl = document.getElementById('transcript');
+  if (transcriptEl.classList.contains('placeholder')) {
+    transcriptEl.textContent = t('transcriptPlaceholder');
+  }
+  document.getElementById('startBtn').textContent = t('btnStart');
+  document.getElementById('stopBtn').textContent = t('btnStop');
+  document.getElementById('labelFeedback').textContent = t('labelFeedback');
+}
+
+function onLangChange() {
+  currentLang = document.getElementById('langSelect').value;
+  applyTranslations();
+  if (recognition && isRunning) {
+    try { recognition.stop(); } catch(e) {}
+    setTimeout(startASR, 300);
+  }
+}
+
+/* ── 초기 UI 적용 ── */
+applyTranslations();
+
+/* ── 립 트래킹 ── */
 var recognition, faceMesh, camera;
 var audioCtx, analyser, micSource, micStream, rafId;
 var lipCanvas = document.getElementById('lipCanvas');
 var lCtx = lipCanvas.getContext('2d');
 var videoEl = document.getElementById('videoEl');
-
 var LIPS_OUTER = [61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146];
 var LIP_TOP = 13, LIP_BOTTOM = 14, LIP_LEFT = 61, LIP_RIGHT = 291;
 
@@ -164,7 +672,6 @@ function onFaceResults(results) {
   if (!results.multiFaceLandmarks || !results.multiFaceLandmarks.length) return;
   var lm = results.multiFaceLandmarks[0];
   function px(p) { return { x: (1 - p.x) * W, y: p.y * H }; }
-
   lCtx.beginPath();
   LIPS_OUTER.forEach(function(idx, i) {
     var p = px(lm[idx]);
@@ -176,31 +683,29 @@ function onFaceResults(results) {
   lCtx.stroke();
   lCtx.fillStyle = 'rgba(29,158,117,0.15)';
   lCtx.fill();
-
   var top = px(lm[LIP_TOP]), bottom = px(lm[LIP_BOTTOM]);
   var left = px(lm[LIP_LEFT]), right = px(lm[LIP_RIGHT]);
   var openH = Math.abs(bottom.y - top.y);
   var openW = Math.abs(right.x - left.x);
   var pct = openW > 0 ? Math.min(Math.round((openH / (openW * 0.6)) * 100), 100) : 0;
-
   document.getElementById('lipBar').style.width = pct + '%';
   document.getElementById('lipPct').textContent = pct + '%';
   var statusEl = document.getElementById('lipStatus');
   if (pct > 20) {
-    statusEl.textContent = '입이 열려있어요 (' + pct + '%)';
+    statusEl.textContent = t('lipOpen') + ' (' + pct + '%)';
     statusEl.className = 'lip-status open';
   } else {
-    statusEl.textContent = '입이 닫혀있어요';
+    statusEl.textContent = t('lipClosed');
     statusEl.className = 'lip-status';
   }
 }
 
 function getDbLevel(db) {
-  if (db < -50) return { label:'무음', cls:'level-silent', pct:0, color:'#ccc' };
-  if (db < -35) return { label:'속삭임', cls:'level-whisper', pct:Math.round((db+50)/15*33), color:'#378ADD' };
-  if (db < -20) return { label:'일상 대화', cls:'level-normal', pct:Math.round(33+(db+35)/15*34), color:'#1D9E75' };
-  if (db < -10) return { label:'큰 소리', cls:'level-loud', pct:Math.round(67+(db+20)/10*20), color:'#EF9F27' };
-  return { label:'소리치는 중', cls:'level-shout', pct:Math.min(87+Math.round((db+10)/10*13),100), color:'#E24B4A' };
+  if (db < -50) return { label:t('lvSilent'), cls:'level-silent', pct:0, color:'#ccc' };
+  if (db < -35) return { label:t('lvWhisper'), cls:'level-whisper', pct:Math.round((db+50)/15*33), color:'#378ADD' };
+  if (db < -20) return { label:t('lvNormal'), cls:'level-normal', pct:Math.round(33+(db+35)/15*34), color:'#1D9E75' };
+  if (db < -10) return { label:t('lvLoud'), cls:'level-loud', pct:Math.round(67+(db+20)/10*20), color:'#EF9F27' };
+  return { label:t('lvShout'), cls:'level-shout', pct:Math.min(87+Math.round((db+10)/10*13),100), color:'#E24B4A' };
 }
 
 function audioLoop() {
@@ -221,7 +726,7 @@ function audioLoop() {
     document.getElementById('dbBar').style.background = lv.color;
   } else {
     document.getElementById('dbNumber').textContent = '--';
-    document.getElementById('dbBadge').textContent = '무음';
+    document.getElementById('dbBadge').textContent = t('lvSilent');
     document.getElementById('dbBadge').className = 'db-level-badge level-silent';
     document.getElementById('dbBar').style.width = '0%';
   }
@@ -231,9 +736,8 @@ function audioLoop() {
 function startASR() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
-  var lang = document.getElementById('langSelect').value;
   recognition = new SR();
-  recognition.lang = lang;
+  recognition.lang = currentLang;
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.onresult = function(e) {
@@ -247,19 +751,16 @@ function startASR() {
   recognition.start();
 }
 
-document.getElementById('langSelect').addEventListener('change', function() {
-  if (recognition) {
-    try { recognition.stop(); } catch(e) {}
-    setTimeout(startASR, 300);
-  }
-});
-
 function startAll() {
+  isRunning = true;
   document.getElementById('startBtn').disabled = true;
   document.getElementById('stopBtn').disabled = false;
   document.getElementById('dot').classList.add('active');
-  document.getElementById('status').textContent = '분석 중...';
+  document.getElementById('status').textContent = t('statusAnalyzing');
   document.getElementById('feedbackCard').classList.add('hidden');
+  var el = document.getElementById('transcript');
+  el.classList.add('placeholder');
+  el.textContent = t('transcriptPlaceholder');
 
   navigator.mediaDevices.getUserMedia({audio:true, video:false}).then(function(s) {
     micStream = s;
@@ -270,7 +771,7 @@ function startAll() {
     micSource.connect(analyser);
     audioLoop();
   }).catch(function() {
-    document.getElementById('status').textContent = '마이크 권한이 필요합니다.';
+    document.getElementById('status').textContent = t('statusMic');
   });
 
   faceMesh = new FaceMesh({locateFile: function(f) {
@@ -283,11 +784,11 @@ function startAll() {
     width: 640, height: 480
   });
   camera.start();
-
   startASR();
 }
 
 function stopAll() {
+  isRunning = false;
   if (rafId) cancelAnimationFrame(rafId);
   if (camera) camera.stop();
   if (recognition) try { recognition.stop(); } catch(e) {}
@@ -296,16 +797,16 @@ function stopAll() {
   analyser = null;
   lCtx.clearRect(0, 0, lipCanvas.width, lipCanvas.height);
   document.getElementById('dot').classList.remove('active');
-  document.getElementById('status').textContent = '분석 완료';
+  document.getElementById('status').textContent = t('statusDone');
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
   document.getElementById('lipBar').style.width = '0%';
   document.getElementById('lipPct').textContent = '0%';
-  document.getElementById('lipStatus').textContent = '입이 닫혀있어요';
+  document.getElementById('lipStatus').textContent = t('lipClosed');
   document.getElementById('lipStatus').className = 'lip-status';
   document.getElementById('dbBar').style.width = '0%';
   document.getElementById('dbNumber').textContent = '--';
-  document.getElementById('dbBadge').textContent = '대기 중';
+  document.getElementById('dbBadge').textContent = t('lvStandby');
   document.getElementById('dbBadge').className = 'db-level-badge level-silent';
   showFeedback();
 }
@@ -314,21 +815,22 @@ function showFeedback() {
   var txt = document.getElementById('transcript').textContent;
   var badge = document.getElementById('dbBadge').textContent;
   var items = [];
-  var ok = txt && txt !== '말씀해주시면 여기에 표시됩니다...' && txt !== '...';
+  var ok = txt && !document.getElementById('transcript').classList.contains('placeholder') && txt !== '...';
   if (ok) {
-    items.push({tag:'good', text:'"'+txt.slice(0,20)+(txt.length>20?'...':'')+'" 발화가 인식되었습니다.'});
+    items.push({tag:'good', text:'"' + txt.slice(0,20) + (txt.length>20?'...':'') + '" ' + t('fbRecognized')});
   } else {
-    items.push({tag:'tip', text:'발화가 인식되지 않았습니다. 더 크고 천천히 말씀해보세요.'});
+    items.push({tag:'tip', text: t('fbNotRecognized')});
   }
-  if (badge === '소리치는 중') {
-    items.push({tag:'warn', text:'목소리가 매우 큽니다. 조금 더 부드럽게 말씀해보세요.'});
-  } else if (badge === '속삭임') {
-    items.push({tag:'tip', text:'목소리가 작습니다. 일상 대화 수준으로 조금 더 크게 말씀해보세요.'});
-  } else if (badge === '일상 대화') {
-    items.push({tag:'good', text:'목소리 크기가 적절합니다.'});
+  if (badge === t('lvShout')) {
+    items.push({tag:'warn', text: t('fbShout')});
+  } else if (badge === t('lvWhisper')) {
+    items.push({tag:'tip', text: t('fbWhisper')});
+  } else if (badge === t('lvNormal')) {
+    items.push({tag:'good', text: t('fbNormal')});
   }
   document.getElementById('feedbackItems').innerHTML = items.map(function(i){
-    return '<div class="feedback-item"><span class="tag '+i.tag+'">'+(i.tag==='good'?'잘됨':i.tag==='warn'?'주의':'개선')+'</span><span>'+i.text+'</span></div>';
+    var tagLabel = i.tag === 'good' ? t('tagGood') : i.tag === 'warn' ? t('tagWarn') : t('tagTip');
+    return '<div class="feedback-item"><span class="tag '+i.tag+'">'+tagLabel+'</span><span>'+i.text+'</span></div>';
   }).join('');
   document.getElementById('feedbackCard').classList.remove('hidden');
 }
