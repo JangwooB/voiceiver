@@ -81,9 +81,8 @@
     border-radius: 14px;
     overflow: hidden;
     background: #000;
-    aspect-ratio: 4/3;
   }
-  #videoEl { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  #videoEl { width: 100%; display: block; transform: scaleX(-1); }
   #lipCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
   /* 입 벌림 바 */
@@ -342,13 +341,27 @@ function syncCanvas() {
   lipCanvas.height = rect.height;
 }
 
+function getCoverOffset() {
+  var vW = videoEl.videoWidth || 640;
+  var vH = videoEl.videoHeight || 480;
+  var cW = lipCanvas.width;
+  var cH = lipCanvas.height;
+  return { offsetX: 0, offsetY: 0, scale: 1, vW: cW, vH: cH };
+}
+
 function onFaceResults(results) {
   syncCanvas();
   var W = lipCanvas.width, H = lipCanvas.height;
   lCtx.clearRect(0, 0, W, H);
   if (!results.multiFaceLandmarks || !results.multiFaceLandmarks.length) return;
   var lm = results.multiFaceLandmarks[0];
-  function px(p) { return { x: (1 - p.x) * W, y: p.y * H }; }
+  var off = getCoverOffset();
+  function px(p) {
+    return {
+      x: (1 - p.x) * off.vW * off.scale - off.offsetX,
+      y: p.y * off.vH * off.scale + off.offsetY
+    };
+  }
   lCtx.beginPath();
   LIPS_OUTER.forEach(function(idx, i) {
     var p = px(lm[idx]);
